@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title>How to adjust the size of mermaid graph in Obsidian</title>
+    <url>/2024/05/20/How-to-adjust-the-size-of-mermaid-graph-in-Obsidian/</url>
+    <content><![CDATA[<h3 id="Description">Description</h3>
+<p>在写上一篇 blog 的时候因为用到了 mermaid 来画流程图，但是在使用过程中发现了一个问题，就是 mermaid 画出来的流程图显示不全。</p>
+<span id="more"></span>
+<p>比如下面一段 mermaid 代码<br>
+<img src="/images/adjust_size_mermaid/mermaid_code.png" alt=""><br>
+在 Obsidian 中编辑的过程中显示效果如下：<br>
+<img src="/images/adjust_size_mermaid/preview_before_change.png" alt=""><br>
+右边的部分就不见了，并且在导出 pdf 的时候这部分也会不见。<br>
+查了一下 Obsidian 的论坛，查到这样一个帖子：<a href="https://forum-zh.obsidian.md/t/topic/4405">如何调整mermaid的graph图的大小（所见即所得模式下）</a>，大概的解决思路就是通过修改 css 的方式来修改 mermaid 的格式。</p>
+<h3 id="Add-css-code">Add css code</h3>
+<p>在 Obsidian &gt; Preferences &gt; 外观 &gt; CSS代码片段<br>
+<img src="/images/adjust_size_mermaid/preferences_1.png" alt=""><br>
+首先点击<code>打开代码段文件夹</code>的按钮，找到 CSS 代码段的存放目录<br>
+<img src="/images/adjust_size_mermaid/preferences_2.png" alt=""><br>
+然后在 CSS 文件中添加如下代码片段：</p>
+<figure class="highlight css"><table><tr><td class="code"><pre><span class="line"><span class="selector-class">.mermaid</span> svg &#123; </span><br><span class="line">	<span class="attribute">width</span>: <span class="number">100%</span>; </span><br><span class="line">	<span class="attribute">height</span>: auto; </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>然后将代码片段按钮设置为 ON 即可生效<br>
+<img src="/images/adjust_size_mermaid/preferences_3.png" alt=""></p>
+<h3 id="效果预览">效果预览</h3>
+<p>修改后 mermaid 的显示效果如下，符合预期。<br>
+<img src="/images/adjust_size_mermaid/preview_after_change.png" alt=""></p>
+]]></content>
+      <categories>
+        <category>Obsidian</category>
+      </categories>
+      <tags>
+        <tag>mermaid</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Hello World</title>
+    <url>/2024/05/10/hello-world/</url>
+    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
+<span id="more"></span>
+<h2 id="Quick-Start">Quick Start</h2>
+<h3 id="Create-a-new-post">Create a new post</h3>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p>
+<h3 id="Run-server">Run server</h3>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p>
+<h3 id="Generate-static-files">Generate static files</h3>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p>
+<h3 id="Deploy-to-remote-sites">Deploy to remote sites</h3>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
+]]></content>
+  </entry>
+  <entry>
+    <title>How to rebuild index gracefully and safely</title>
+    <url>/2024/05/14/How-to-rebuild-index-gracefully-and-safely/</url>
+    <content><![CDATA[<h3 id="Prior-knowledge-about-index">Prior knowledge about index</h3>
+<h4 id="What-is-relfilenode">What is relfilenode:</h4>
+<p>pg_class 里面有一列叫 relfilenode , pg 官方的文档对这列的解释是：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Name of the on-disk file of this relation; zero means this is a &quot;mapped&quot; relation whose disk file name is determined by low-level state</span><br></pre></td></tr></table></figure>
+<p>也就是这个值表示 pg_class 里面某个对象在磁盘上存储的文件名。</p>
+<span id="more"></span>
+<h4 id="How-to-identify-an-index">How to identify an index:</h4>
+<p>可以用 pg_class 中的 oid  （在 pg_index 中为 indexrelid ）来唯一标识一个索引。当然，用 relfilenode 来进行标识也是可以的。</p>
+<h4 id="How-to-store-an-index">How to store an index:</h4>
+<p>这里讨论的是分布式存储下索引的存储方式。<br>
+从存储的角度来看，一条索引存储的目录如下：<br>
+<code>/index_data_dir/dbid/tableid/indexid/indexfile</code><br>
+indexfile 的文件名的命名方式为：</p>
+<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line">highvalue-lowvalue.mi</span><br><span class="line">highvalue = dbid &lt;&lt; <span class="number">32</span> + tableid;</span><br><span class="line">lowvalue = indexid &lt;&lt; <span class="number">32</span> + fileid;</span><br></pre></td></tr></table></figure>
+<p>dbid , tableid , indexid 可以用 oid 来表示，也可以用 relfilenode 来表示（目前的方法是用 table relfilenode 和 index relfilenode 来表示 tableid 和 indexid ）。<br>
+fileid 用来表示文件的版本，比如对一个索引做过 compact 后，会把数据翻新到一个新的文件中然后删除旧的文件，此时 fileid++ 。</p>
+<h4 id="What-is-shared-relation">What is shared relation</h4>
+<p>postgres 中的元数据通常都是每个数据库自己独占的，比如 pg_class 中存的就是当前数据库中所有对象的信息，所以理应每个数据库有一份自己的 pg_class ，但是对于某些元数据，比如 pg_database ,  pg_authid 这种所有数据库共享的信息，只会在 template1 中存储一份，其他数据库想要访问 Shared Relation 的时候会去 template1 中读取。</p>
+<h3 id="How-to-rebuild-an-index">How to rebuild an index</h3>
+<p>pg 的官方文档是这么定义<code>REINDEX</code>的：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">REINDEX rebuilds an index using the data stored in the index&#x27;s table, replacing the old copy of the index.</span><br></pre></td></tr></table></figure>
+<p>就是用表里的数据重建索引，可以用该操作来恢复出错的索引。<br>
+现在代码里的 REINDEX 有两套逻辑：</p>
+<ul>
+<li>第一套逻辑是5.x的逻辑，通过<code>magma_tool</code>直接在存储侧进行一个类似 compact 的操作，把索引文件的 fileid 加一，创建一个新的文件，把数据导入到新文件中，然后删除掉老的文件。这个过程对于上层来说是不感知的（比如对于查这个索引对应的元数据的时候，该索引的 oid 和 relfilenode 都是不变的）。</li>
+<li>第二套逻辑是6.x的逻辑，是按照 postgres 的逻辑来的，大概是这样的一个流程：
+<ol>
+<li>给 index 申请一个新的 relfilenode , 然后把老的文件注册删除并创建一个新的索引文件，并且更新 pg_class 中的 relfilenode 值为最新申请的。</li>
+<li>然后调用 index_build 接口，把数据从表中读上来再插入到索引中。</li>
+<li>新索引创建成功，事务提交，真正删除老的文件。<br>
+这套逻辑上层是感知的（ relfilenode 变了）。</li>
+</ol>
+</li>
+</ul>
+<h3 id="Defect-of-current-REINDEX-logic">Defect of current REINDEX logic</h3>
+<p>目前两套逻辑各有缺陷，下面分析一下：</p>
+<h4 id="5-x的逻辑：">5.x的逻辑：</h4>
+<p>这套逻辑最大的问题是不支持全局二级索引(Global Secondary Index)的 rebuild , 因为在存储侧做这个操作，各个分片不会去其他分片读取数据，每个分片只会用自己分片的数据去重建索引，而全局二级索引的分布和主表不同，所以这套逻辑无法 handle 全局二级索引的情况。</p>
+<p>其次就是这套逻辑的做法有些太 hack 了，使得 reindex 看起来不像是一个数据库内部的操作，更像是一个index恢复脚本。</p>
+<h4 id="6-x的逻辑：">6.x的逻辑：</h4>
+<p>这套逻辑在用户表和非 Shared Relation 上是没有任何问题的，因为这套逻辑相当于 drop index 后再 create ，并且中间任何一个环节出问题都是可以恢复的，比如旧的文件注册删除了，这时候不会真正的删除，只有在事务成功提交之后才会去真正的删除，假如事务 abort 了，会把旧的文件恢复。<br>
+但是当我们在 Shared Relation 上做 REINDEX 操作的时候，问题出现了。<br>
+我们再细致的观察一下 REINDEX 的流程，然后看看问题出在哪里：</p>
+<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span></span></span><br><span class="line"><span class="function"><span class="title">reindex_index</span><span class="params">(Oid indexId, <span class="type">bool</span> skip_constraint_checks, <span class="type">char</span> persistence,  </span></span></span><br><span class="line"><span class="params"><span class="function">           <span class="type">int</span> options)</span></span></span><br><span class="line"><span class="function">   </span>&#123;</span><br><span class="line">    ...</span><br><span class="line">    heapId = <span class="built_in">IndexGetRelation</span>(indexId, <span class="literal">false</span>);  </span><br><span class="line">	heapRelation = <span class="built_in">table_open</span>(heapId, ShareLock);</span><br><span class="line">	...</span><br><span class="line">	iRel = <span class="built_in">index_open</span>(indexId, AccessExclusiveLock);</span><br><span class="line">	...</span><br><span class="line">	<span class="comment">/* Create a new physical relation for the index */</span>  </span><br><span class="line">	<span class="built_in">RelationSetNewRelfilenode</span>(iRel, persistence);</span><br><span class="line">	...</span><br><span class="line">	<span class="comment">/* Initialize the index and rebuild */</span></span><br><span class="line">	<span class="built_in">index_build</span>(heapRelation, iRel, indexInfo, <span class="literal">true</span>, <span class="literal">true</span>);</span><br><span class="line">	...</span><br><span class="line">	<span class="built_in">index_close</span>(iRel, NoLock);  </span><br><span class="line">	<span class="built_in">table_close</span>(heapRelation, NoLock);</span><br><span class="line">   &#125;</span><br><span class="line"><span class="function"><span class="type">void</span>  </span></span><br><span class="line"><span class="function"><span class="title">RelationSetNewRelfilenode</span><span class="params">(Relation relation, <span class="type">char</span> persistence)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">	...</span><br><span class="line">	<span class="comment">/* Allocate a new relfilenode */</span>  </span><br><span class="line">	newrelfilenode = <span class="built_in">GetNewRelFileNode</span>(relation-&gt;rd_rel-&gt;reltablespace, <span class="literal">NULL</span>, persistence);</span><br><span class="line">	...</span><br><span class="line">	<span class="comment">/*  </span></span><br><span class="line"><span class="comment">	 * Get a writable copy of the pg_class tuple for the given relation. </span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	pg_class = <span class="built_in">table_open</span>(RelationRelationId, RowExclusiveLock);</span><br><span class="line">	...</span><br><span class="line">	<span class="built_in">RelationDropStorage</span>(relation);</span><br><span class="line">	...</span><br><span class="line">	srel = <span class="built_in">RelationCreateStorage</span>(newrnode, persistence, smgr_type);</span><br><span class="line">	...</span><br><span class="line">	<span class="built_in">CatalogTupleUpdate</span>(pg_class, oldtuple, tuple);</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>当我们更新 pg_class 中的条目的时候（该对象的 relfilenode 改变，所以要更新），我们更新的是当前数据库的 pg_class 表，设想下面一种情况：</p>
+<p>假设我们当前在名为<code>test1</code>的数据库中执行：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">REINDEX INDEX pg_database_datname_index</span><br></pre></td></tr></table></figure>
+<p>（ pg_database 是一个 Shared Relation ），该索引的 relfilnode 假设从 2671 变成了 16388 ，那么<code>test1</code>中的 pg_class 中<code>relname = pg_database_datname_index</code>的一条就会从<br>
+<code>oid = 2671, relname = pg_database_datname_index, relfilenode = 2671</code><br>
+变成<br>
+<code>oid = 2671, relname = pg_database_datname_index, relfilenode = 16388</code>。</p>
+<p>磁盘上的文件目录也会从<code>/1/1262/2671</code>变成<code>/1/1262/16388</code>(因为该索引只存储在 template1 数据库中，所以<code>dbid = 1</code>，也就是<code>template1</code>的 dbid )。</p>
+<p>那么假设 REINDEX 操作成功执行，这时候另一个<code>psql</code>的连接过来了，说想要连接<code>test1</code>数据库，收到这条请求之后，会根据<code>test1</code>这个 name 去 pg_database 进行 indexscan ,用哪个 index 进行 indexscan 呢？没错，就是刚刚 REINDEX 过的 pg_database_datname_index 。</p>
+<p>进行 indexscan 之前需要先拿一下索引的信息，因为这个索引是 Shared Relation ,这条信息就去要去<code>template1</code>中拿，这时候问题来了，<code>template1</code>中的这条索引的 relfilenode 还是 2671 ，因为我们刚刚更新的是<code>test1</code>中这条索引的 relfilenode ,并没有改<code>template1</code>中的 relfilenode ，但是磁盘上的文件又已经发生了改变，用<code>relfilenode = 2671</code>已经找不到这个索引对应的文件了，这时候数据库就会报错并挂掉。</p>
+<h3 id="How-does-postgres-rebuild-index-on-SharedRelation">How does postgres rebuild index on SharedRelation</h3>
+<p>现在我们发现了对 Shared Relation 做 REINDEX 操作会导致无法找到正确的 relfilenode 。那么我们看看万能的 postgres 是怎么处理这个问题的。<br>
+仔细阅读 postgres 的代码，我们可以发现有一个文件叫<code>relmapper.c</code>， 里面的注释是这样写的：</p>
+<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="comment">/*-------------------------------------------------------------------------  </span></span><br><span class="line"><span class="comment"> * relmapper.c </span></span><br><span class="line"><span class="comment"> *    Catalog-to-filenode mapping </span></span><br><span class="line"><span class="comment"> * </span></span><br><span class="line"><span class="comment"> * For most tables, the physical file underlying the table is specified by </span></span><br><span class="line"><span class="comment"> * pg_class.relfilenode.  (blablablablablablablablablablablabla)  It also </span></span><br><span class="line"><span class="comment"> * does not work for shared catalogs, since there is no practical way to </span></span><br><span class="line"><span class="comment"> * update other databases&#x27; pg_class entries when relocating a shared catalog.</span></span><br><span class="line"><span class="comment"> * </span></span><br><span class="line"><span class="comment"> * Therefore, for these special catalogs (henceforth referred to as &quot;mapped  </span></span><br><span class="line"><span class="comment"> * catalogs&quot;) we rely on a separately maintained file that shows the mapping  </span></span><br><span class="line"><span class="comment"> * from catalog OIDs to filenode numbers.  Each database has a map file for  </span></span><br><span class="line"><span class="comment"> * its local mapped catalogs, and there is a separate map file for shared  </span></span><br><span class="line"><span class="comment"> * catalogs.  Mapped catalogs have zero in their pg_class.relfilenode entries.</span></span><br><span class="line"><span class="comment"> *  </span></span><br><span class="line"><span class="comment"> *-------------------------------------------------------------------------</span></span><br></pre></td></tr></table></figure>
+<p>看来 postgres 也早已发现 Shared Relation 修改 relfilenode 会有问题了，他们的解决方案是用一个额外的文件<code>pg_filenode.map</code>来存储从 oid 到 relfilenode 的映射，然后在元数据中给这些需要映射的对象的 relfilenode 设置为0，然后在需要用到其 relfilenode 的时候再从这个映射的文件里面查。<br>
+<code>relcache.c</code>里面的一段代码可以直观的看出这段逻辑是如何工作的：</p>
+<figure class="highlight c++"><table><tr><td class="code"><pre><span class="line"><span class="keyword">if</span> (relation-&gt;rd_rel-&gt;relfilenode)  </span><br><span class="line">&#123;  </span><br><span class="line">	.......</span><br><span class="line">    relation-&gt;rd_node.relNode = relation-&gt;rd_rel-&gt;relfilenode;  </span><br><span class="line">&#125;  </span><br><span class="line"><span class="keyword">else</span>  </span><br><span class="line">&#123;  </span><br><span class="line">    <span class="comment">/* Consult the relation mapper */</span>  </span><br><span class="line">    relation-&gt;rd_node.relNode =  </span><br><span class="line">       <span class="built_in">RelationMapOidToFilenode</span>(relation-&gt;rd_id,  </span><br><span class="line">                          relation-&gt;rd_rel-&gt;relisshared);  </span><br><span class="line">    <span class="keyword">if</span> (!<span class="built_in">OidIsValid</span>(relation-&gt;rd_node.relNode))  </span><br><span class="line">       <span class="built_in">elog</span>(ERROR, <span class="string">&quot;could not find relation mapping for relation \&quot;%s\&quot;, OID %u&quot;</span>, <span class="built_in">RelationGetRelationName</span>(relation), relation-&gt;rd_id);  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>当然这里只是简述了一下这个映射是如何工作的，具体的实现还涉及到很多，比如考虑修改 relfilenode 的事务是否成功提交以及和WAL协作等，这里就不细讨论了。</p>
+<h3 id="How-should-we-rebuild-an-distributed-index">How should we rebuild an distributed index</h3>
+<p>单机数据库中的 REINDEX 已经没什么问题了，那么这套逻辑在处理分布式存储的索引的时候是否还能正常工作呢？</p>
+<p>答案是不可以，因为 postgres 这套逻辑是映射文件只存在 master 节点的，并且该文件只有一份，假设有多个 master ，如果照搬这套逻辑，不同的 master 文件里面存的映射可能会不同，导致还是不能拿到正确的 relfilenode 。</p>
+<p>那么我们需要考虑如何对分布式存储的索引做 REINDEX 操作。在开始想如何做的时候，我们先想想现在存在什么问题：</p>
+<ul>
+<li>问题一：要考虑如何处理 GSI 分布和主表分布不同的情况。</li>
+<li>问题二：要考虑 REINDEX Shared Relation 后如何处理 relfilenode 发生变化的情况。</li>
+<li>问题三：要考虑 REINDEX 过程中出错后如何处理。</li>
+</ul>
+<p><strong>要解决问题一</strong>，就不能在存储侧做 REINDEX 操作，要从<code>QD</code>调用 drop index + create index 的流程，因为目前 create index 是支持<code>GSI</code>的创建的，所以可以处理<code>GSI</code>分布不同的情况。<br>
+<strong>要解决问题二</strong>，有两种方案，第一种方案是存储目录使用 indexoid 来标识，这样即使 relfilenode 改变， indexoid 也不会改变，根据之前的 indexoid 依然可以找到正确的目录，然后读取到索引，第二种方案是像 postgres 一样使用一个映射来找到正确的 relfilenode 。<br>
+<strong>要解决问题三</strong>， 就需要具体考虑 REINDEX 过程中各个阶段的文件变化，这个在后面详细讨论。</p>
+<p>综上，提出如下的解决方案：</p>
+<p>这个方案的做法是把index的存储目录从<br>
+<code>/index_data_dir/dbid/tableid/indexrelfilenode/indexfile</code><br>
+变成<br>
+<code>/index_data_dir/dbid/tableid/indexoid/indexfile</code><br>
+并且把 indexfile name 中的 lowvalue 做一下变化，原先的 lowvalue 计算方法是：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">indexid &lt;&lt; 32 + fileId &lt;&lt; 4 + BTFT_INDEX</span><br></pre></td></tr></table></figure>
+<p>并且将 fileId 从 uint8_t 变更为 uint32_t ,新的 lowvalue 的计算方法为：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">indexid &lt;&lt; 32 + fileId</span><br></pre></td></tr></table></figure>
+<p>在本方案中， indexId 用 index Oid 来代替 index relfilenode ，假设<br>
+tableId = 1262, indexOid = 2671, REINDEX 前 fileId = 1 ,REINDEX 后 fileId = 2,<br>
+那么原先的文件目录是：<br>
+<code>1/1262/2671/4294968558-11471857647617.mi</code><br>
+<code>REINDEX</code>后，文件目录是：<br>
+<code>1/1262/2671/4294968558-11471857647618.mi</code></p>
+<p>REINDEX后再对该索引进行操作的时候，根据 dbid + tableId + indexoid 的组合来找到目录，并且highvalue 和 lowvalue 中的 indexid 都不会变，所以也可以定位到索引文件。</p>
+<p>那么 REINDEX 过程中，该文件夹内的文件状态如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">BEFORE REINDEX</span><br><span class="line">Status 1 : *-11471857647617.mi</span><br><span class="line">REINDEXING</span><br><span class="line">	BEGIN REINDEX(create new file):</span><br><span class="line">	Status 2 : *-11471857647617.mi      *-11471857647618.mi.tmp</span><br><span class="line">	DO REINDEX(insert into new file):</span><br><span class="line">	Status 3 : *-11471857647617.mi      *-11471857647618.mi.tmp</span><br><span class="line">	END REINDEX(convert new file to visible and delete old file):</span><br><span class="line">	Status 4 : *-11471857647617.mi      *-11471857647618.mi</span><br><span class="line">	Status 5 : *-11471857647618.mi</span><br><span class="line">AFTER REINDEX</span><br><span class="line">Status 6 : *-11471857647618.mi</span><br></pre></td></tr></table></figure>
+<pre class="mermaid">sequenceDiagram
+
+QD->>+MagmaClient: REBUILD INDEX request
+
+MagmaClient->>+MagmaServer: REBUILD INDEX request
+
+Note right of MagmaServer: BEGIN REBUILD : 1.mi -> 1.mi 2.mi.tmp
+
+Note right of MagmaServer: DO REBUILD : insert 2.mi.tmp
+
+Note right of MagmaServer: END REBUILD : 1.mi 2.mi.tmp -> 2.mi
+
+MagmaServer-->>-MagmaClient: Done
+
+MagmaClient-->>-QD: Done</pre>
+<p>对于全局二级索引，由于插入数据需要在<code>QD</code>读所有的数据，排序然后再插入，总体流程如下：</p>
+<pre class="mermaid">sequenceDiagram
+
+Note right of QD: begin transaction
+
+QD->>+MagmaClient: REBUILD INDEX request
+
+MagmaClient->>+MagmaServer: REBUILD INDEX request
+
+Note right of MagmaServer: BEGIN REBUILD : 1.mi -> 1.mi 2.mi.tmp
+
+MagmaServer-->>-MagmaClient: waiting for insert GSI
+
+MagmaClient-->>-QD: waiting for insert GSI
+
+Note right of QD: Read GSI data and sort
+
+QD->>+MagmaClient: insert GSI
+
+MagmaClient->>+MagmaServer: insert GSI
+
+Note right of MagmaServer: DO REBUILD : insert 2.mi.tmp
+
+MagmaServer-->>-MagmaClient: waiting for end Rebulid
+
+MagmaClient-->>-QD: waiting for end Rebuild
+
+QD->>+MagmaClient: drop old index and convert
+
+MagmaClient->>+MagmaServer: drop old index and convert
+
+Note right of MagmaServer: END REBUILD : drop 1.mi and convert 2.mi.tmp to 2.mi
+
+MagmaServer-->>-MagmaClient: Done
+
+MagmaClient-->>-QD: Done
+
+Note right of QD: commit transaction</pre>
+<p>现在来考虑出错的场景该如何处理和恢复：<br>
+如果在 magma server 收到 REINDEX request 之前就出错，事务 abort 即可，无需特殊处理。<br>
+如果在 magma server 收到 request 之后出错：</p>
+<ul>
+<li><strong>在<code>Status 2, Status 3</code>出错</strong>：会残留一个<code>.tmp</code>文件，这个可以在每次 BEGIN REINDEX 之前进行一次检查，如果目录中有残留的<code>.tmp</code>文件就清理一下。</li>
+<li><strong>在<code>Status 4</code>出错</strong>：发现多个 visible 的文件，选取 filenum 小的文件，可以在每次 BEGIN REINDEX 之前检查的时候发现有残留的<code>.mi</code>文件就把 filenum 大的一个清理掉。</li>
+<li><strong>在<code>Status 5</code>出错</strong>：无需特殊处理，事务 abort 即可。<br>
+如果在 magma server 返回 response 的时候出错：事务 abort 即可，无需特殊处理。</li>
+</ul>
+]]></content>
+      <categories>
+        <category>Database</category>
+      </categories>
+      <tags>
+        <tag>Index</tag>
+      </tags>
+  </entry>
+</search>

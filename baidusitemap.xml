@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>http://example.com/2024/05/17/Gorilla-A-Fast-Scalable-In-Memory-Time-Series-Database/</loc>
+    <lastmod>2024-05-30</lastmod>
+  </url>
+  <url>
     <loc>http://example.com/2024/05/20/How-to-adjust-the-size-of-mermaid-graph-in-Obsidian/</loc>
     <lastmod>2024-05-20</lastmod>
   </url>

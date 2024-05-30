@@ -33,6 +33,290 @@
       </tags>
   </entry>
   <entry>
+    <title>Gorilla: A Fast, Scalable, In-Memory Time Series Database</title>
+    <url>/2024/05/17/Gorilla-A-Fast-Scalable-In-Memory-Time-Series-Database/</url>
+    <content><![CDATA[<h3 id="ABSTRACT">ABSTRACT</h3>
+<p>摘要部分大概介绍了一下 TSDB(time series database) 应用的场景，引出 Facebook 的 in-memory 的时序数据库 Gorilla。作者的想法是用户比起单个数据点更侧重于数据的聚合分析，并且对于诊断和分析线上问题的场景来说，新的数据点比旧的数据点更有价值。Gorilla 为了优化查询性能，采用了激进的压缩方法，比如<code>delta-of-delta timestamps</code> 和 <code>XOR'd floating point values</code>，这使得其内存消耗缩小了 10 倍，由此可以将数据放在内存中。相比于 HBase 的存储方案，Gorilla 的查询延迟减少 73 倍，吞吐量提升了 14 倍。</p>
+<span id="more"></span>
+<h3 id="1-INTRODUCTION">1. INTRODUCTION</h3>
+<p>随着互联网服务的规模逐渐扩大，其规模也从几百台机器上的几个系统扩大为几千台机器上的数千个系统。所以就需要准确的监控这些集群的状态和性能，Facebook就是用时序数据库来采集这些系统的数据，然后定义一些快速的查询函数给上层使用。接下来定义了一些对这个时序数据库的需求，顺便介绍一下这个 Gorilla 有多牛逼：</p>
+<h5 id="Writes-dominate">Writes dominate</h5>
+<p>对这个时序数据库的首要要求就是其可以一直写入数据（你就是拿来监控别人的，你肯定不能挂），而且 Facebook 的集群每秒可以轻松产生千万个数据点，写入的负载很高。相比较来看，读数据的请求比写数据的请求要低好几个数量级，因为读数据一般只关注一些比较重要的时间序列，要么就是聚合数据做一些可视化之类的。</p>
+<h5 id="State-transitions">State transitions</h5>
+<p>为了能及时发现系统的状态转移（比如新版本发布，改了某个配置，或者网络出问题了），需要时序数据库支持短时间窗口内的细粒度的聚合。在十秒内捕获并展示状态转移对于快速解决问题和防止其传播是很重要的。</p>
+<h5 id="High-availability">High availability</h5>
+<p>假如不同数据中心出现网络分区的情况，每个数据中心也应该向本地的时序数据库写入，并且可以检索这些数据。</p>
+<h5 id="Fault-tolerance">Fault tolerance</h5>
+<p>把所有写入的内容都复制到多个 region 去，这样就算任意一个数据中心或者 region 挂了还是能用的。</p>
+<p>定义完了需求，那就得说一下 Gorilla 了，Facebook 说我们自己做的东西那肯定上面这些需求都满足的，可以把这个 Gorilla 理解成一个 write-through cache ，并且因为是纯内存的，所以一个查询只需要 10ms 就可以返回结果。</p>
+<p>前边也说过了，设计这个 Gorilla 的一个原因就是用户不太注重于单个数据点，更注重于数据聚合分析。此外，因为这些系统不存用户数据，所以传统的 ACID 对于时序数据库来说也不是一个核心需求。还有就是 Gorilla 为了保持写入和读取的高可用，付出了一定的代价，就是小部分写入的数据可能会丢失。</p>
+<p>然后接下来还有几个问题得解决：高数据插入率、总数据量、实时聚合和可靠性要求。</p>
+<p>先解决前两个问题，Facebook 之前用的是 ODS(Operational Data Store) 这个时序数据库，他们调研了一下，发现 85% 的查询都是查的过去 26 小时内的数据。又调研了一下，发现内存数据库比 磁盘数据库可以更好的服务客户。再调研一下，发现可以把内存数据库作为磁盘存储的 cache，这样可以兼得内存系统的插入速度和磁盘数据库的持久化。一举两得，爽！</p>
+<p>再说这个数据量有多大呢，2015年春天的时候，Facebook 监控系统总共产生超过 20 亿组时间序列，每秒产生 1200 万个，每天 1 万亿个数据点。假设每个采样点需要 16 字节来存储，一天就需要16TB的内存（恐怖如斯）。数据量大怎么办？压缩！于是用基于 XOR 的浮点数压缩算法把每个采样点的数据压缩到1.37个字节，减少到原先 1/12。</p>
+<p>为了解决可靠性需求，在不同的数据中心和地区都部署 Gorilla 实例，不同实例之间同步数据但不保证一致性，读请求会被定向到最近的可用的 Gorilla 实例上。</p>
+<h3 id="2-BACKGROUND-REQUIREMENTS">2. BACKGROUND &amp; REQUIREMENTS</h3>
+<h4 id="2-1-Operational-Data-Store-ODS">2.1 Operational Data Store (ODS)</h4>
+<p>Facebook一直用的 ODS 来监控，ODS 包括一个时序数据库，一个查询服务器还有检测报警系统，下图是一个ODS的架构<br>
+<img src="/images/Gorilla/pic_1.png" alt=""><br>
+ODS 的数据消费者主要有两个，一个是方便开发人员看的图表系统，还有就是报警系统。</p>
+<h5 id="2-1-1-Monitoring-system-read-performance-issues">2.1.1 Monitoring system read performance issues</h5>
+<p>俗话说得好，不要重复造轮子，所以 Facebook 一看这个 Hbase 不错，可以用来存时序数据，但是到了2013 年的时候，Facebook 发现现在 ODS 用的这套基于 HBase 的存储系统不太能 scale 未来的读负载，现在的读就已经有点慢了。但是直接换存储也不太行，Hbase 里面存了差不多 2 PB 的数据。 那用缓存行不行呢，Facebook 也不是没试过，ODS 用了个简单的 read-through cache， 但这只有在多个图表共享的时间序列上有用，一读新的数据就又给缓存击穿了。那不用 read-through cache, 用 write-through cache再试试呢，Facebook 也试过，用 Memcache 试了一下， 发现写入大量新数据的时候 memcache server 也撑不住，所以还得想个别的招。</p>
+<h4 id="2-2-Gorilla-requirements">2.2 Gorilla requirements</h4>
+<p>综上所述，对于新的解决方案需求如下：</p>
+<ul>
+<li>20 亿组不同的时序数据，每组时序数据用一个唯一的字符串标识</li>
+<li>每分钟 7 亿个数据采样点</li>
+<li>保存 26 小时的全量数据</li>
+<li>峰值时每秒超过 40000 次查询</li>
+<li>数据读取在 1ms 内完成</li>
+<li>支持最小采样间隔为 15s</li>
+<li>两个不在同一地点的内存中副本（用于灾难恢复能力）</li>
+<li>即使单台服务器崩溃，也能始终提供读取服务。</li>
+<li>能够快速扫描所有内存数据</li>
+<li>支持每年 2 倍的增长</li>
+</ul>
+<h3 id="3-COMPARISON-WITH-TSDB-SYSTEMS">3. COMPARISON WITH TSDB SYSTEMS</h3>
+<p>虽然市面上已经有很多处理时间序列的数据库，并且功能也挺多的，比如对时间序列聚集，分类或者索引之类的，但是还真没有像 Facebook 这样需要实时处理大批量时间序列数据的。并且因为 Gorilla 是纯内存数据库，所以可以把它看成是一个 write through cache ，搭配一个 on-disk 的时序数据库使用更佳。<br>
+不过还是先看看别的轮子怎么造的，万一能拿来直接用呢：</p>
+<h4 id="3-1-OpenTSDB">3.1 OpenTSDB</h4>
+<p>粗略一看，OpenTSDB 好像还行，也是基于 HBase 做的，而且存储层和 ODS 原本的那套差不多。但是仔细一看又不太行，OpenTSDB 是基于磁盘的，所以查询速度不满足要求，而且对于旧数据不压缩，保留完全精度，Facebook 觉得牺牲旧数据精度来换取性能和空间是可以的，所以这轮子用不得。</p>
+<h4 id="3-2-Whisper-Graphite">3.2 Whisper(Graphite)</h4>
+<p>上来一看，你们这 Graphite 又是一个磁盘存储，后面都不太用看了，肯定不行。但是还是提了一下共同点，比如新数据会覆盖超过一定时间的旧数据，不过不行就是不行。</p>
+<h4 id="3-3-InfluxDB">3.3 InfluxDB</h4>
+<p>InfluxDB 对一个时间序列里的每个事件都存了全量元数据，什么意思呢，意思就是存这么多东西更占地方了，虽然 InfluxDB 的分布式设计可以让运维团队无需管理 HBase / Hadoop ，但是 Facebook 已经有人干这个事了，所以这对我来说没区别啊，而且这也是个磁盘存的，pass。</p>
+<p>这么一看，这轮子都不太行，装不上 Facebook 的车，只能自己造了。</p>
+<h3 id="4-GORILLA-ARCHITECTURE">4. GORILLA ARCHITECTURE</h3>
+<p>前文说过 Gorilla 可以看作是存入 HBase 的监控数据的一个 write-through cache， 那么这个监控数据由三部分组成，分别是：</p>
+<ul>
+<li>key(string)</li>
+<li>time stamp(int64)</li>
+<li>value(double)<br>
+key 用来唯一标识时间序列，并且用该 key 来进行分片，把数据打到不同的 Gorilla host 上，这样在扩容的时候只需要加节点然后修改 shard 方式即可。</li>
+</ul>
+<h4 id="4-1-Time-series-compression">4.1 Time series compression</h4>
+<p>Gorilla 一直在说他们的压缩算法很牛，可以把每条时序数据从 16 字节压缩到 1.37 字节，那接下来就看看他们是咋做的：<br>
+论文里先是说我们考虑了一些已有的压缩算法，发现专门压缩整数(integer)的算法不满足压缩 value 字段的需求，因为 value 是 double 类型的，其他的技术要么就是不满足流式压缩的需求，要么就是会损失精度，所以都不太行。<br>
+所以 Gorilla 又要自己造轮子了，新的轮子需要满足：</p>
+<ul>
+<li>能压缩 double</li>
+<li>支持流式压缩</li>
+<li>不损失精度<br>
+需求已经明确了，剩下的就是干就完了。Gorilla 对于 timestamp 和 value 使用不同的压缩方法，压缩方式如图所示：<br>
+<img src="/images/Gorilla/pic_2.png" alt=""></li>
+</ul>
+<p>假设现在有三条数据：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">|        timestamp        | value |</span><br><span class="line">|  ---------------------  |  ---  |</span><br><span class="line">| March 24, 2015 02:01:02 |  12   |</span><br><span class="line">| March 24, 2015 02:02:02 |  12   |</span><br><span class="line">| March 24, 2015 02:03:02 |  24   |</span><br></pre></td></tr></table></figure>
+<p>压缩的流程如下：</p>
+<ol>
+<li>Header 记录起始时间戳，图中为<code>March 24, 2015 02:00:00 </code></li>
+<li>第一条数据：
+<ol>
+<li>记录时间戳与起始时间戳的差，图中为<code>62</code></li>
+<li>原始 value 值，图中为<code>12</code></li>
+</ol>
+</li>
+<li>第二条数据及之后的数据：
+<ol>
+<li>记录时间戳 delta of delta</li>
+<li>记录 XOR 编码后的 value 差值<br>
+先说一下时间戳部分是怎么压缩的：</li>
+</ol>
+</li>
+</ol>
+<h5 id="4-1-1-Compressing-time-stamps">4.1.1 Compressing time stamps</h5>
+<p>想要知道数据怎么压缩才能达到最好的效果，需要先分析一下数据有什么规律，Gorilla 团队分析了一下 ODS 里面的数据，发现数据点大部分都是以一个固定的间隔到达 ODS 的，比如每 60 秒记录一个数据点，偶尔可能会早一秒或者晚一秒，但时间窗口是大致不变的。<br>
+找到这样的规律之后，就不需要直接存时间戳了，只需要存 delta of delta 即可，举个例子，比如一个时间序列：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">[00:00:02, 00:01:02, 00:02:02, 00:03:01, 00:04:02]</span><br></pre></td></tr></table></figure>
+<p>他们之间的差值就是 [60, 60, 59, 61] 再对这个差值序列求差值，得到 [0, 1, -2] 这个对差值再求差值的方法就叫做 delta of delta。数据真正存的也就是 [0, 1, -2] 这个序列。</p>
+<p>那么具体要如何存呢？论文中给出了一个算法：</p>
+<ol>
+<li>Header 存储起始时间戳 $t_{-1}$ ,通常按照 2 小时对齐，如图二中就是 02:00:00 ,对于第一个时间戳 $t_{0}$ ,用 14 bits 存储 $t_{0}$ 和 $t_{-1}$ 的差值</li>
+<li>从第二个时间戳 $t_{1}$ 开始：
+<ol>
+<li>计算 delta of delta: $D = (t_{n} - t{n-1}) - (t_{n-1} - t_{n-2})$</li>
+<li>如果 $D = 0$, 那么就存 1 bits ‘0’</li>
+<li>如果 $-63 &lt;= D &lt;= 64$, 那么先存 2 bits ‘10’ ，再用 7 bits 存 $D$ 的值</li>
+<li>如果 $-255 &lt;= D &lt;= 256$, 那么先存 3 bits ‘110’ ，再用 9 bits 存 $D$ 的值</li>
+<li>如果 $-2047 &lt;= D &lt;= 2048$, 那么先存 4 bits ‘1110’ ，再用 12 bits 存 $D$ 的值</li>
+<li>其他情况先存 4 bits ‘1111’，再用 32 bits 存 $D$ 的值</li>
+</ol>
+</li>
+</ol>
+<p>举个例子，假设数据点的时间序列如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">[00:00:00, 00:01:00, 00:02:00, 00:04:00, 00:08:00, 00:38:00, 02:38:00]</span><br></pre></td></tr></table></figure>
+<p>得出 delta 序列为 [60, 60, 120, 240, 1800, 7200] , delta of delta 为 [0, 60, 120, 1560, 5400], 那么根据上述算法，每个时间戳的压缩后的数据为：</p>
+<table>
+<thead>
+<tr>
+<th>time</th>
+<th>data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>00:00:00</td>
+<td>00:00:00</td>
+</tr>
+<tr>
+<td>00:01:00</td>
+<td>‘111100’</td>
+</tr>
+<tr>
+<td>00:02:00</td>
+<td>‘0’</td>
+</tr>
+<tr>
+<td>00:04:00</td>
+<td>‘10’ + ‘0111100’</td>
+</tr>
+<tr>
+<td>00:08:00</td>
+<td>‘110’ + ‘001111000’</td>
+</tr>
+<tr>
+<td>00:38:00</td>
+<td>‘1110’ + ‘011000011000’</td>
+</tr>
+<tr>
+<td>02:38:00</td>
+<td>‘1111’ + ‘00000000000000000001010100011000’</td>
+</tr>
+</tbody>
+</table>
+<p>为什么选择这几个数字做边界情况呢？因为这是从生产上的数据总结出来的，用这些边界值可以得到最好的压缩率。考虑数据点可能丢失的情况：以 $-63 &lt;= D &lt;= 64$ 这个边界为例，假设采集到的数据点的时间序列如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">[00:00:02, 00:01:02, 00:02:02, 00:04:03, 00:05:02]</span><br></pre></td></tr></table></figure>
+<p>计算得出 delta 序列为 [60, 60, 121, 59], delta of delta 就是 [0, 61, 62], 61 和 62 都在  $-63 &lt;= D &lt;= 64$ 的范围内，这样就可以避免用 9 bits 存 $D$ 的值，只需要 7 bits 即可。同理，$-255 &lt;= D &lt;= 256$ 是为了应对每 4 分钟采集一次数据并丢失数据点的情况。<br>
+下图是时序压缩的统计表现，大概 96% 的时间戳只需要 1 bit 即可存储：<br>
+<img src="/images/Gorilla/pic_3.png" alt=""></p>
+<h5 id="4-1-2-Compressing-values">4.1.2 Compressing values</h5>
+<p>前面讲了时间戳是怎么压缩的，接下来看看每个时间戳对应的 value 是怎么压缩的：<br>
+首先，value 都是 double 类型存储的，存储格式如下图，<br>
+<img src="/images/Gorilla/pic_4.jpeg" alt=""><br>
+经过分析 ODS 里面的数据， 发现相邻的数据变化不会很大，sign 和 exponent 以及 mantissa 的前几位基本是完全相同的。从下图 Double Representation 列可以看出：<br>
+<img src="/images/Gorilla/pic_5.png" alt=""><br>
+所以 Gorilla 通过记录相邻 value 的 XOR 值的信息来压缩数据，为了便于理解，先定义一个 XOR 运算后的结果由以下三部分组成：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">0x4028000000000000 (12) 和 </span><br><span class="line">0x4041800000000000 (35) 进行 XOR 运算，得到结果</span><br><span class="line">0x0069800000000000</span><br><span class="line"></span><br><span class="line">将其转化为二进制形式</span><br><span class="line">0b0000 0000 0110 1001 1000 (+ 44个0)</span><br><span class="line">leading zero | meaningful bits |  trailing zero</span><br><span class="line"> 0b00000000  |     11010011    |   00000000000（一共44个）</span><br><span class="line">     </span><br><span class="line">leading zeros  （lz）: XOR后第一个非零位前面零的个数</span><br><span class="line">trailing zeros （tz）: XOR后最后一个非零位后面零的个数</span><br><span class="line">meaningful bits（mb）: 中间有效位的个数</span><br></pre></td></tr></table></figure>
+<p>再定义一个概念，原文中叫做</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">meaningful bits falls within the block of previous meaningful bits</span><br></pre></td></tr></table></figure>
+<p>翻译过来就是有效位落入上一次 XOR 结果的有效位的区间，说人话就是本次 XOR 的结果的 leading zero 大于等于上一次结果的 leading zero，且 trailing zero 也大于等于上一次结果的 trailing zero，举个例子：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">现在有两个 XOR 的结果：</span><br><span class="line"></span><br><span class="line">0x0026400000000000 = 0b0000 0000 00 | 10 0110 01 | 00 0..0</span><br><span class="line">0x0023400000000000 = 0b0000 0000 00 | 10 0011 01 | 00 0..0</span><br><span class="line"></span><br><span class="line">这两个结果 lz 和 tz 数量相同，第二个 XOR 的结果的 mb 就是 falls within 前一次结果的 mb 的</span><br><span class="line"></span><br><span class="line">再举个例子：</span><br><span class="line"></span><br><span class="line">0x0026400000000000 = 0b0000 0000 00 | 10 0110 01 | 00 0..0</span><br><span class="line">0x0003400000000000 = 0b0000 0000 0000 00 | 11 01 | 00 0..0</span><br><span class="line"></span><br><span class="line">这种情况也是 falls within 的</span><br><span class="line"></span><br><span class="line">但下面这种情况：</span><br><span class="line"></span><br><span class="line">0x0026400000000000 = 0b0000 0000 00 | 10 0110 01 | 00 0..0</span><br><span class="line">0x0026200000000000 = 0b0000 0000 00 | 10 0110 001 | 0 0..0</span><br><span class="line"></span><br><span class="line">就不是 falls within 的，因为 tz 数量比前一次少了</span><br><span class="line"></span><br><span class="line">当然下面这种情况也不是 falls within 的：</span><br><span class="line"></span><br><span class="line">0x0026400000000000 = 0b0000 0000 00 | 10 0110 01 | 00     0..0(44个)</span><br><span class="line">0x0066230000000000 = 0b0000 0000 0 | 110 0110 0010 0011 | 0..0(40个)</span><br><span class="line"></span><br><span class="line">不仅 lz 少了，tz也少了。</span><br></pre></td></tr></table></figure>
+<p>具体算法如下：</p>
+<ol>
+<li>第一个 value 不压缩。</li>
+<li>如果该 value 和前一个 value XOR 后得到的值是 0 ，表示该值和上一个值一样，那么只存 1 bit ‘0’</li>
+<li>如果 XOR 后得到的值不是 0 ，说明值不一样，先存 1 bit ‘1’, 然后
+<ol>
+<li>如果当前 XOR 结果中的 meaningful bits 落入上一个 XOR 结果的 meaningful bits 区间，那么就先存 1 bit ‘0’, 然后存储区间内的值。</li>
+<li>否则，先存 1 bit ‘1’，再用 5 bits 存 leading zeros 的个数，再用 6 bits 存 meaningful bits 的位数，最后再存 meaningful bits.<br>
+再举个例子，假设有以下 value ，并已经计算好 XOR 结果：</li>
+</ol>
+</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">      value         |        XOR</span><br><span class="line">0x4028000000000000  |</span><br><span class="line">0x4028000000000000  |         0</span><br><span class="line">0x4038000000000000  |  0x0010000000000000 = 0b0000 0000 0001 0..0</span><br><span class="line">0x402e000000000000  |  0x0016000000000000 = 0b0000 0000 0001 0110 0..0</span><br><span class="line">0x4028000000000000  |  0x0006000000000000 = 0b0000 0000 0000 0110 0..0</span><br><span class="line"></span><br><span class="line">分别对四个 XOR 结果进行计算：</span><br><span class="line"></span><br><span class="line">第一个 XOR 结果是 0，结果就是：</span><br><span class="line">control bits</span><br><span class="line">	 0</span><br><span class="line">得到 0</span><br><span class="line"></span><br><span class="line">第二个 XOR 结果显然没有落入上一个结果的 mb 区间，所以计算结果是：</span><br><span class="line">control bits |   num of lz   |   num of mb  |    mb</span><br><span class="line">     11      |   01011(11)   |   000001(1)  |     1</span><br><span class="line">得到 11010110000011</span><br><span class="line"></span><br><span class="line">第三个 XOR 结果也没有落入上一个结果的 mb 区间，所以计算结果是：</span><br><span class="line">control bits |   num of lz   |   num of mb  |    mb</span><br><span class="line">     11      |   01011(11)   |   000100(4)  |   1011</span><br><span class="line">得到 11010110001001011</span><br><span class="line"></span><br><span class="line">第四个 XOR 结果落入了，计算结果是：</span><br><span class="line">control bits |   mb falls within the block of previous mb</span><br><span class="line">     10      |   0011</span><br><span class="line">这里存 0011 因为上一个 XOR 结果的有效位是 1011, 这个 mb block 一共有四位，所以本次要存落入这个 block 中的 0011 而不是只存 11</span><br></pre></td></tr></table></figure>
+<p>下图给出了 Gorilla 中 value 值的分布，其中大概 51% 的数据都可以被压缩为一个 ‘0’（因为 value 基本不变) 。<br>
+<img src="/images/Gorilla/pic_6.jpeg" alt=""><br>
+还有一个 trade-off 需要考虑，就是时间跨度越大，对于时间跨度内的数据压缩效果越好，下图给出了时间跨度和压缩后字节数的关系：<br>
+<img src="/images/Gorilla/pic_7.png" alt=""><br>
+从图中可以看出，在时间跨度超过两小时之后带来的压缩率的提升已经很小了，所以最后 Gorilla 选择了两小时的时间跨度来进行压缩。</p>
+<h4 id="4-2-In-memory-data-structures">4.2 In-memory data structures</h4>
+<p>Gorilla 内存中的数据结构如下图所示：<br>
+<img src="/images/Gorilla/pic_8.png" alt=""><br>
+主要由以下三部分组成：</p>
+<ul>
+<li>ShardMap</li>
+<li>TSmap</li>
+<li>TS</li>
+</ul>
+<h5 id="TSmap">TSmap</h5>
+<p>其中主要的数据结构就是 TSmap， TSmap 由以下两部分组成：</p>
+<ol>
+<li>vector&lt;shared_ptr&lt;TS&gt;&gt;, 保存了指向 TS 的共享指针</li>
+<li>unordered_map&lt;string, shared_ptr&lt;TS&gt;&gt;, 保存从 time series name (保留但不区分大小写)到 TS 共享指针的映射<br>
+vector 可以保证快速的遍历所有数据，哈希表可以保证快速地查找，这样就可以既要又要了。用 shared_ptr 的原因是可以使扫描时的拷贝很快，避免影响新写入的数据。删除是用 Tombstoneing 的做法，先标记为 dead 然后重复用的时候覆盖即可。<br>
+TSmap 在并发访问 TS 的时候是用 TS 上面的 spinlock 实现的，而且对 TS 写入不多，所以读写锁竞争不多。</li>
+</ol>
+<h5 id="ShardMap">ShardMap</h5>
+<p>ShardMap 用于保存 shardId 到 TSmap 的映射，是用 vector &lt;unique_ptr&lt;TSmap&gt;&gt; 实现的，vector 的下标就是 shardId。保存 TimeSeries 的时候，根据其 name 进行哈希（不区分大小写），得到  [0, NumberOfShards) 区间上的 shardId，系统中 Shard 总数也就几千个，所以有的 shardId 没有数据，存空指针的开销也不大。<br>
+ShardMap 访问 TSmap 的并发控制也是用 spinlock 控制的。<br>
+并且由于数据是根据 shard 分区的，所以每个 shardId 对应的 TSmap 都很小（大约一百万条数据），用 unordered_map 在性能上是没问题的，锁也没问题。</p>
+<h5 id="TS">TS</h5>
+<p>TS 主要由一系列的 closed data blocks 和一个 open data block 组成。每个 block 存两小时的数据。CDB 存两小时之前的数据，ODB 存最近两小时的数据，并且 ODB 是 append-only 的 string，一旦写满两小时的数据，ODB 就会被关闭然后转化成 CDB，CDB是不允许修改的，除非是被删除然后被清理。<br>
+按照时间范围读数据的时候，会把整个 block 返回给 client，client 自行解压。</p>
+<h4 id="4-3-On-disk-structures">4.3 On disk structures</h4>
+<p>Gorilla 的设计目标之一就是要能应对单点故障，所以就得用分布式的文件系统，Gorilla 选择了 GlusterFS 来存储持久化的数据。<br>
+一个 Gorilla 主机上有多个 shards 的数据，每个 shard 有一个单独的目录，目录下有四种类型的文件：</p>
+<ul>
+<li>key list</li>
+<li>append-only log</li>
+<li>complete block files</li>
+<li>checkpoint files</li>
+</ul>
+<h5 id="key-list">key list</h5>
+<p>key list 就是一个 map, 用来存 time series string key 到内存中 vector 下标的映射，新的 key 写入的时候是 append 到 list 末尾的，然后 Gorilla 会定期对每个 shard 里面的 key 做一次 scan, 然后重写一下 key list 文件。（这里查了一下 gpt, 定期重写文件可能是为了数据压缩和垃圾回收）。</p>
+<h5 id="log-file">log file</h5>
+<p>这个 log file 是 append only 的，每当有数据流入 Gorilla 的时候，就会被存在 log file 里，相当于把 4.1 节里压缩后 timeseries 和 values 落盘。因为每个 shard 只有一个 log file, 所以每个 log file 里面会有多个 timeseries 的数据，那么这时候就需要一个额外的 32-bit 整数 ID 来标识每条数据属于哪个 timeseries。<br>
+此外，这个 log file 不是 WAL 日志，数据在落盘之前会缓存 64kB，所以宕机会导致丢几秒钟的数据，不过 Gorilla 不需要 ACID 特性，所以 WAL 带来的收益（ACID）不如这种方式带来的收益（写入速率）高，相当于在 ACID 和写入速度之间做了个 trade-off。</p>
+<h5 id="complete-block-files">complete block files</h5>
+<p>内存结构一节里面提到，TS 会每两个小时生成一个 block，除此之外，Gorilla 还会每两个小时把生成的 block 压缩后写入磁盘，写入磁盘的文件包括两个部分：一段连续的 64kB 大小的 block data 和 pair&lt;time series ID, data block pointer&gt; 的列表，用于标记block data属于哪个time series。</p>
+<h5 id="checkpoint-file">checkpoint file</h5>
+<p>checkpoint file 用于标记某个时间的 complete block file 已经 flush 到磁盘。此时，对应的 log file 将被删除，数据流写入新的 log file 。宕机后接管该 Shard 的主机根据 checkpoint file 来确定从 log file 还是 complete block file 里读取数据。</p>
+<p><img src="/images/Gorilla/pic_9.png" alt=""></p>
+<h4 id="4-4-Handling-failures">4.4 Handling failures</h4>
+<p>在容错方面，Gorilla 优先支持以下场景：</p>
+<ul>
+<li>单点故障，如果是临时故障则客户端完全无感知，常用于新版发布</li>
+<li>大范围、区域性故障：如 region 范围的网络分区<br>
+对于其他类型的错误，Gorilla 又做了个 trade-off，当系统出错导致丢数据的时候，Gorilla 优先保证最近的数据是可用的，对于旧数据丢就丢了，反正可以从 HBase 里面还可以查到，Gorilla 就是个缓存。</li>
+</ul>
+<p>首先说如何应对大范围，区域性的故障：<br>
+Gorilla 通过在两个不同地区的数据中心维护两个完全独立的 Gorilla 实例来保证系统的高可用。写入的时候会向两个实例都写入，但不保证写入数据的一致性。这样就算一个地区的实例完全挂掉了（论文给出的例子是挂掉超过一分钟没恢复），查询会打到另一个实例上进行查询，挂掉的集群将不会收到读请求，直到正常工作超过 26 小时后才继续接受读请求。</p>
+<p>接下来说如何应对单点故障：<br>
+在每个区域内部，一种基于 Paxos 的 ShardManager 用于维护分片与节点之间的关系。当一个节点发生故障时，ShardManager 会将它维护的分片重新分配给集群内部的其它节点。分片转移通常能够在 30 秒内完成，在分片转移的过程中，写入数据的客户端将缓存待写入的数据，并且最多缓存最近 1 分钟的数据。当客户端发现分片转移操作执行完时，客户端会立即掏空缓存，将数据写入到节点中。如果分片转移速度太慢，读请求可以被手动或自动地转发到另一个区域。</p>
+<p>当新的分片被分配给一个节点时，该节点需要从 GlusterFS 中读入所有数据。通常加载和预处理这些数据需要 5 分钟。当该节点正在恢复数据时，新写入的时序样本数据会被放入一个待处理队列。在老节点发生故障后，新节点加载分片数据完毕之前，读请求可能会读到部分数据，并打上标记。如果客户端发现数据被标记为部分数据，会再次请求另一个区域中的数据，如果数据完整则返回后者，失败则返回两组部分数据。</p>
+<p>最后再强调一下，Gorilla 就是个缓存，所以就算 Gorilla 都挂了，仍然可以从 HBase 里面读到正确的数据。</p>
+<h3 id="5-NEW-TOOLS-ON-GORILLA">5. NEW TOOLS ON GORILLA</h3>
+<p>前边说了一通 Gorilla 有多快有多好用，下面列举一些基于 Gorilla 才能用的新的分析工具</p>
+<h4 id="5-1-Correlation-engine">5.1 Correlation engine</h4>
+<p>用来分析数据相关性的工具</p>
+<h4 id="5-2-Charting">5.2 Charting</h4>
+<p>低时延的查询使得图标可以看更多的数据</p>
+<h4 id="5-3-Aggregations">5.3 Aggregations</h4>
+<p>有了 Gorilla 之后可以把之前需要 map-reduce 才能做完的上卷分析直接放到 Gorilla 上面跑了，之前都是从 HBase cluster 读的数据然后分析，现在用 Gorilla 读取数据变得非常高效。</p>
+<h3 id="6-EXPERIENCE">6. EXPERIENCE</h3>
+<p>略</p>
+<h3 id="7-FUTURE-WORK">7. FUTURE WORK</h3>
+<p>现在只能存 26 小时的数据，将来要进化到可以存两周的数据。</p>
+<h3 id="8-CONCLUSION">8. CONCLUSION</h3>
+<p>综上，Gorilla 提供了一个对 26 小时内监控数据内存级分布式水平扩展的 TSDB，在 long-term 分布式 TSDB 基础上提供了短时间（也是大部分查询需求时间段）内秒级快速查询的能力。</p>
+]]></content>
+      <categories>
+        <category>Paper</category>
+      </categories>
+      <tags>
+        <tag>TSDB</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Hello World</title>
+    <url>/2024/05/10/hello-world/</url>
+    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
+<span id="more"></span>
+<h2 id="Quick-Start">Quick Start</h2>
+<h3 id="Create-a-new-post">Create a new post</h3>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p>
+<h3 id="Run-server">Run server</h3>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p>
+<h3 id="Generate-static-files">Generate static files</h3>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p>
+<h3 id="Deploy-to-remote-sites">Deploy to remote sites</h3>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
+]]></content>
+  </entry>
+  <entry>
     <title>How to rebuild index gracefully and safely</title>
     <url>/2024/05/14/How-to-rebuild-index-gracefully-and-safely/</url>
     <content><![CDATA[<h3 id="Prior-knowledge-about-index">Prior knowledge about index</h3>
@@ -196,25 +480,5 @@ Note right of QD: commit transaction</pre>
       <tags>
         <tag>Index</tag>
       </tags>
-  </entry>
-  <entry>
-    <title>Hello World</title>
-    <url>/2024/05/10/hello-world/</url>
-    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<span id="more"></span>
-<h2 id="Quick-Start">Quick Start</h2>
-<h3 id="Create-a-new-post">Create a new post</h3>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server">Run server</h3>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files">Generate static files</h3>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites">Deploy to remote sites</h3>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
-]]></content>
   </entry>
 </search>

@@ -21,15 +21,15 @@
     var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"remove","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="在 mac 上跑程序的时候看到日志里报错 1failed to open file due to Too many open files. 看了下配置里 12345678910$ sudo launchctl limit	cpu         unlimited      unlimited	filesize    unlimited      unlimited	data        unl">
+  <meta name="description" content="在 mac 上跑程序的时候看到日志里报错 1failed to open file due to Too many open files.">
 <meta property="og:type" content="article">
 <meta property="og:title" content="fix too many open files on macos">
 <meta property="og:url" content="http://example.com/2024/06/19/fix-too-many-open-files-on-macos/index.html">
 <meta property="og:site_name" content="Simon&#39;s Blog">
-<meta property="og:description" content="在 mac 上跑程序的时候看到日志里报错 1failed to open file due to Too many open files. 看了下配置里 12345678910$ sudo launchctl limit	cpu         unlimited      unlimited	filesize    unlimited      unlimited	data        unl">
+<meta property="og:description" content="在 mac 上跑程序的时候看到日志里报错 1failed to open file due to Too many open files.">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2024-06-19T03:24:18.000Z">
-<meta property="article:modified_time" content="2024-06-19T03:31:36.437Z">
+<meta property="article:modified_time" content="2024-06-19T03:32:36.102Z">
 <meta property="article:author" content="Simon">
 <meta property="article:tag" content="miscellaneous">
 <meta name="twitter:card" content="summary">
@@ -213,7 +213,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2024-06-19 11:24:18 / 修改时间：11:31:36" itemprop="dateCreated datePublished" datetime="2024-06-19T11:24:18+08:00">2024-06-19</time>
+              <time title="创建时间：2024-06-19 11:24:18 / 修改时间：11:32:36" itemprop="dateCreated datePublished" datetime="2024-06-19T11:24:18+08:00">2024-06-19</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -259,6 +259,7 @@
       
         <p>在 mac 上跑程序的时候看到日志里报错</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">failed to open file due to Too many open files.</span><br></pre></td></tr></table></figure>
+<span id="more"></span>
 <p>看了下配置里</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">$ sudo launchctl <span class="built_in">limit</span></span><br><span class="line">	cpu         unlimited      unlimited</span><br><span class="line">	filesize    unlimited      unlimited</span><br><span class="line">	data        unlimited      unlimited</span><br><span class="line">	stack       8372224        67092480</span><br><span class="line">	core        0              unlimited</span><br><span class="line">	rss         unlimited      unlimited</span><br><span class="line">	memlock     unlimited      unlimited</span><br><span class="line">	maxproc     6000           9000</span><br><span class="line">	maxfiles    65536          unlimited</span><br></pre></td></tr></table></figure>
 <p><strong>第一列</strong>为项的名称，<strong>第二列</strong>为软件限制，<strong>第三列</strong>为硬件限制<br>

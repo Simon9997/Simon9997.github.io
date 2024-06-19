@@ -210,7 +210,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2024-06-19 11:24:18 / 修改时间：11:31:36" itemprop="dateCreated datePublished" datetime="2024-06-19T11:24:18+08:00">2024-06-19</time>
+              <time title="创建时间：2024-06-19 11:24:18 / 修改时间：11:32:36" itemprop="dateCreated datePublished" datetime="2024-06-19T11:24:18+08:00">2024-06-19</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -249,15 +249,14 @@
       
           <p>在 mac 上跑程序的时候看到日志里报错</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">failed to open file due to Too many open files.</span><br></pre></td></tr></table></figure>
-<p>看了下配置里</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">$ sudo launchctl <span class="built_in">limit</span></span><br><span class="line">	cpu         unlimited      unlimited</span><br><span class="line">	filesize    unlimited      unlimited</span><br><span class="line">	data        unlimited      unlimited</span><br><span class="line">	stack       8372224        67092480</span><br><span class="line">	core        0              unlimited</span><br><span class="line">	rss         unlimited      unlimited</span><br><span class="line">	memlock     unlimited      unlimited</span><br><span class="line">	maxproc     6000           9000</span><br><span class="line">	maxfiles    65536          unlimited</span><br></pre></td></tr></table></figure>
-<p><strong>第一列</strong>为项的名称，<strong>第二列</strong>为软件限制，<strong>第三列</strong>为硬件限制<br>
-使用以下命令修改 maxfiles</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ sudo launchctl <span class="built_in">limit</span> maxfiles 2000000 unlimited</span><br></pre></td></tr></table></figure>
-<p>再次查看 limit</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">$ sudo launchctl <span class="built_in">limit</span></span><br><span class="line">	cpu         unlimited      unlimited</span><br><span class="line">	filesize    unlimited      unlimited</span><br><span class="line">	data        unlimited      unlimited</span><br><span class="line">	stack       8372224        67092480</span><br><span class="line">	core        0              unlimited</span><br><span class="line">	rss         unlimited      unlimited</span><br><span class="line">	memlock     unlimited      unlimited</span><br><span class="line">	maxproc     6000           9000</span><br><span class="line">	maxfiles    2000000        unlimited</span><br></pre></td></tr></table></figure>
-<p>修改成功</p>
-
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2024/06/19/fix-too-many-open-files-on-macos/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
       
     </div>
 

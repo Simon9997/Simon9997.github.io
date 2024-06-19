@@ -1,38 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>How to adjust the size of mermaid graph in Obsidian</title>
-    <url>/2024/05/20/How-to-adjust-the-size-of-mermaid-graph-in-Obsidian/</url>
-    <content><![CDATA[<h3 id="Description">Description</h3>
-<p>在写上一篇 blog 的时候因为用到了 mermaid 来画流程图，但是在使用过程中发现了一个问题，就是 mermaid 画出来的流程图显示不全。</p>
-<span id="more"></span>
-<p>比如下面一段 mermaid 代码<br>
-<img src="/images/adjust_size_mermaid/mermaid_code.png" alt=""><br>
-在 Obsidian 中编辑的过程中显示效果如下：<br>
-<img src="/images/adjust_size_mermaid/preview_before_change.png" alt=""><br>
-右边的部分就不见了，并且在导出 pdf 的时候这部分也会不见。<br>
-查了一下 Obsidian 的论坛，查到这样一个帖子：<a href="https://forum-zh.obsidian.md/t/topic/4405">如何调整mermaid的graph图的大小（所见即所得模式下）</a>，大概的解决思路就是通过修改 css 的方式来修改 mermaid 的格式。</p>
-<h3 id="Add-css-code">Add css code</h3>
-<p>在 Obsidian &gt; Preferences &gt; 外观 &gt; CSS代码片段<br>
-<img src="/images/adjust_size_mermaid/preferences_1.png" alt=""><br>
-首先点击<code>打开代码段文件夹</code>的按钮，找到 CSS 代码段的存放目录<br>
-<img src="/images/adjust_size_mermaid/preferences_2.png" alt=""><br>
-然后在 CSS 文件中添加如下代码片段：</p>
-<figure class="highlight css"><table><tr><td class="code"><pre><span class="line"><span class="selector-class">.mermaid</span> svg &#123; </span><br><span class="line">	<span class="attribute">width</span>: <span class="number">100%</span>; </span><br><span class="line">	<span class="attribute">height</span>: auto; </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>然后将代码片段按钮设置为 ON 即可生效<br>
-<img src="/images/adjust_size_mermaid/preferences_3.png" alt=""></p>
-<h3 id="效果预览">效果预览</h3>
-<p>修改后 mermaid 的显示效果如下，符合预期。<br>
-<img src="/images/adjust_size_mermaid/preview_after_change.png" alt=""></p>
-]]></content>
-      <categories>
-        <category>Obsidian</category>
-      </categories>
-      <tags>
-        <tag>mermaid</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Gorilla: A Fast, Scalable, In-Memory Time Series Database</title>
     <url>/2024/05/17/Gorilla-A-Fast-Scalable-In-Memory-Time-Series-Database/</url>
     <content><![CDATA[<h3 id="ABSTRACT">ABSTRACT</h3>
@@ -297,6 +265,38 @@ Gorilla 通过在两个不同地区的数据中心维护两个完全独立的 Go
       </tags>
   </entry>
   <entry>
+    <title>How to adjust the size of mermaid graph in Obsidian</title>
+    <url>/2024/05/20/How-to-adjust-the-size-of-mermaid-graph-in-Obsidian/</url>
+    <content><![CDATA[<h3 id="Description">Description</h3>
+<p>在写上一篇 blog 的时候因为用到了 mermaid 来画流程图，但是在使用过程中发现了一个问题，就是 mermaid 画出来的流程图显示不全。</p>
+<span id="more"></span>
+<p>比如下面一段 mermaid 代码<br>
+<img src="/images/adjust_size_mermaid/mermaid_code.png" alt=""><br>
+在 Obsidian 中编辑的过程中显示效果如下：<br>
+<img src="/images/adjust_size_mermaid/preview_before_change.png" alt=""><br>
+右边的部分就不见了，并且在导出 pdf 的时候这部分也会不见。<br>
+查了一下 Obsidian 的论坛，查到这样一个帖子：<a href="https://forum-zh.obsidian.md/t/topic/4405">如何调整mermaid的graph图的大小（所见即所得模式下）</a>，大概的解决思路就是通过修改 css 的方式来修改 mermaid 的格式。</p>
+<h3 id="Add-css-code">Add css code</h3>
+<p>在 Obsidian &gt; Preferences &gt; 外观 &gt; CSS代码片段<br>
+<img src="/images/adjust_size_mermaid/preferences_1.png" alt=""><br>
+首先点击<code>打开代码段文件夹</code>的按钮，找到 CSS 代码段的存放目录<br>
+<img src="/images/adjust_size_mermaid/preferences_2.png" alt=""><br>
+然后在 CSS 文件中添加如下代码片段：</p>
+<figure class="highlight css"><table><tr><td class="code"><pre><span class="line"><span class="selector-class">.mermaid</span> svg &#123; </span><br><span class="line">	<span class="attribute">width</span>: <span class="number">100%</span>; </span><br><span class="line">	<span class="attribute">height</span>: auto; </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>然后将代码片段按钮设置为 ON 即可生效<br>
+<img src="/images/adjust_size_mermaid/preferences_3.png" alt=""></p>
+<h3 id="效果预览">效果预览</h3>
+<p>修改后 mermaid 的显示效果如下，符合预期。<br>
+<img src="/images/adjust_size_mermaid/preview_after_change.png" alt=""></p>
+]]></content>
+      <categories>
+        <category>Obsidian</category>
+      </categories>
+      <tags>
+        <tag>mermaid</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>How to rebuild index gracefully and safely</title>
     <url>/2024/05/14/How-to-rebuild-index-gracefully-and-safely/</url>
     <content><![CDATA[<h3 id="Prior-knowledge-about-index">Prior knowledge about index</h3>
@@ -462,27 +462,6 @@ Note right of QD: commit transaction</pre>
       </tags>
   </entry>
   <entry>
-    <title>fix too many open files on macos</title>
-    <url>/2024/06/19/fix-too-many-open-files-on-macos/</url>
-    <content><![CDATA[<p>在 mac 上跑程序的时候看到日志里报错</p>
-<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">failed to open file due to Too many open files.</span><br></pre></td></tr></table></figure>
-<p>看了下配置里</p>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ sudo launchctl <span class="built_in">limit</span></span><br><span class="line">	cpu         unlimited      unlimited</span><br><span class="line">	filesize    unlimited      unlimited</span><br><span class="line">	data        unlimited      unlimited</span><br><span class="line">	stack       8372224        67092480</span><br><span class="line">	core        0              unlimited</span><br><span class="line">	rss         unlimited      unlimited</span><br><span class="line">	memlock     unlimited      unlimited</span><br><span class="line">	maxproc     6000           9000</span><br><span class="line">	maxfiles    65536          unlimited</span><br></pre></td></tr></table></figure>
-<p><strong>第一列</strong>为项的名称，<strong>第二列</strong>为软件限制，<strong>第三列</strong>为硬件限制<br>
-使用以下命令修改 maxfiles</p>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ sudo launchctl <span class="built_in">limit</span> maxfiles 2000000 unlimited</span><br></pre></td></tr></table></figure>
-<p>再次查看 limit</p>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ sudo launchctl <span class="built_in">limit</span></span><br><span class="line">	cpu         unlimited      unlimited</span><br><span class="line">	filesize    unlimited      unlimited</span><br><span class="line">	data        unlimited      unlimited</span><br><span class="line">	stack       8372224        67092480</span><br><span class="line">	core        0              unlimited</span><br><span class="line">	rss         unlimited      unlimited</span><br><span class="line">	memlock     unlimited      unlimited</span><br><span class="line">	maxproc     6000           9000</span><br><span class="line">	maxfiles    2000000        unlimited</span><br></pre></td></tr></table></figure>
-<p>修改成功</p>
-]]></content>
-      <categories>
-        <category>miscellaneous</category>
-      </categories>
-      <tags>
-        <tag>miscellaneous</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Hello World</title>
     <url>/2024/05/14/hello-world/</url>
     <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
@@ -501,5 +480,27 @@ Note right of QD: commit transaction</pre>
 <figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
 <p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
 ]]></content>
+  </entry>
+  <entry>
+    <title>fix too many open files on macos</title>
+    <url>/2024/06/19/fix-too-many-open-files-on-macos/</url>
+    <content><![CDATA[<p>在 mac 上跑程序的时候看到日志里报错</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">failed to open file due to Too many open files.</span><br></pre></td></tr></table></figure>
+<span id="more"></span>
+<p>看了下配置里</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ sudo launchctl <span class="built_in">limit</span></span><br><span class="line">	cpu         unlimited      unlimited</span><br><span class="line">	filesize    unlimited      unlimited</span><br><span class="line">	data        unlimited      unlimited</span><br><span class="line">	stack       8372224        67092480</span><br><span class="line">	core        0              unlimited</span><br><span class="line">	rss         unlimited      unlimited</span><br><span class="line">	memlock     unlimited      unlimited</span><br><span class="line">	maxproc     6000           9000</span><br><span class="line">	maxfiles    65536          unlimited</span><br></pre></td></tr></table></figure>
+<p><strong>第一列</strong>为项的名称，<strong>第二列</strong>为软件限制，<strong>第三列</strong>为硬件限制<br>
+使用以下命令修改 maxfiles</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ sudo launchctl <span class="built_in">limit</span> maxfiles 2000000 unlimited</span><br></pre></td></tr></table></figure>
+<p>再次查看 limit</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ sudo launchctl <span class="built_in">limit</span></span><br><span class="line">	cpu         unlimited      unlimited</span><br><span class="line">	filesize    unlimited      unlimited</span><br><span class="line">	data        unlimited      unlimited</span><br><span class="line">	stack       8372224        67092480</span><br><span class="line">	core        0              unlimited</span><br><span class="line">	rss         unlimited      unlimited</span><br><span class="line">	memlock     unlimited      unlimited</span><br><span class="line">	maxproc     6000           9000</span><br><span class="line">	maxfiles    2000000        unlimited</span><br></pre></td></tr></table></figure>
+<p>修改成功</p>
+]]></content>
+      <categories>
+        <category>miscellaneous</category>
+      </categories>
+      <tags>
+        <tag>miscellaneous</tag>
+      </tags>
   </entry>
 </search>

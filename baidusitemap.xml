@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>http://example.com/2024/06/19/fix-too-many-open-files-on-macos/</loc>
+    <lastmod>2024-06-19</lastmod>
+  </url>
+  <url>
     <loc>http://example.com/2024/05/17/Gorilla-A-Fast-Scalable-In-Memory-Time-Series-Database/</loc>
     <lastmod>2024-05-30</lastmod>
   </url>
@@ -9,7 +13,7 @@
     <lastmod>2024-05-20</lastmod>
   </url>
   <url>
-    <loc>http://example.com/2024/05/10/hello-world/</loc>
+    <loc>http://example.com/2024/05/14/hello-world/</loc>
     <lastmod>2024-05-14</lastmod>
   </url>
   <url>

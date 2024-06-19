@@ -297,26 +297,6 @@ Gorilla 通过在两个不同地区的数据中心维护两个完全独立的 Go
       </tags>
   </entry>
   <entry>
-    <title>Hello World</title>
-    <url>/2024/05/10/hello-world/</url>
-    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<span id="more"></span>
-<h2 id="Quick-Start">Quick Start</h2>
-<h3 id="Create-a-new-post">Create a new post</h3>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server">Run server</h3>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files">Generate static files</h3>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites">Deploy to remote sites</h3>
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
-]]></content>
-  </entry>
-  <entry>
     <title>How to rebuild index gracefully and safely</title>
     <url>/2024/05/14/How-to-rebuild-index-gracefully-and-safely/</url>
     <content><![CDATA[<h3 id="Prior-knowledge-about-index">Prior knowledge about index</h3>
@@ -480,5 +460,46 @@ Note right of QD: commit transaction</pre>
       <tags>
         <tag>Index</tag>
       </tags>
+  </entry>
+  <entry>
+    <title>fix too many open files on macos</title>
+    <url>/2024/06/19/fix-too-many-open-files-on-macos/</url>
+    <content><![CDATA[<p>在 mac 上跑程序的时候看到日志里报错</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">failed to open file due to Too many open files.</span><br></pre></td></tr></table></figure>
+<p>看了下配置里</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ sudo launchctl <span class="built_in">limit</span></span><br><span class="line">	cpu         unlimited      unlimited</span><br><span class="line">	filesize    unlimited      unlimited</span><br><span class="line">	data        unlimited      unlimited</span><br><span class="line">	stack       8372224        67092480</span><br><span class="line">	core        0              unlimited</span><br><span class="line">	rss         unlimited      unlimited</span><br><span class="line">	memlock     unlimited      unlimited</span><br><span class="line">	maxproc     6000           9000</span><br><span class="line">	maxfiles    65536          unlimited</span><br></pre></td></tr></table></figure>
+<p><strong>第一列</strong>为项的名称，<strong>第二列</strong>为软件限制，<strong>第三列</strong>为硬件限制<br>
+使用以下命令修改 maxfiles</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ sudo launchctl <span class="built_in">limit</span> maxfiles 2000000 unlimited</span><br></pre></td></tr></table></figure>
+<p>再次查看 limit</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ sudo launchctl <span class="built_in">limit</span></span><br><span class="line">	cpu         unlimited      unlimited</span><br><span class="line">	filesize    unlimited      unlimited</span><br><span class="line">	data        unlimited      unlimited</span><br><span class="line">	stack       8372224        67092480</span><br><span class="line">	core        0              unlimited</span><br><span class="line">	rss         unlimited      unlimited</span><br><span class="line">	memlock     unlimited      unlimited</span><br><span class="line">	maxproc     6000           9000</span><br><span class="line">	maxfiles    2000000        unlimited</span><br></pre></td></tr></table></figure>
+<p>修改成功</p>
+]]></content>
+      <categories>
+        <category>miscellaneous</category>
+      </categories>
+      <tags>
+        <tag>miscellaneous</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Hello World</title>
+    <url>/2024/05/14/hello-world/</url>
+    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
+<span id="more"></span>
+<h2 id="Quick-Start">Quick Start</h2>
+<h3 id="Create-a-new-post">Create a new post</h3>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/writing.html">Writing</a></p>
+<h3 id="Run-server">Run server</h3>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/server.html">Server</a></p>
+<h3 id="Generate-static-files">Generate static files</h3>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/generating.html">Generating</a></p>
+<h3 id="Deploy-to-remote-sites">Deploy to remote sites</h3>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
+]]></content>
   </entry>
 </search>
